@@ -1,0 +1,64 @@
+version: "3.8"
+
+services:
+  webapp:
+    build:
+      context: ./webapp_service
+      dockerfile: Dockerfile
+    container_name: webapp
+    restart: always
+    expose:
+      - "5000"
+    environment:
+      - FLASK_ENV=production
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DB=myflaskapp
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app_network
+
+  nginx:
+    build:
+      context: ./nginx_service
+      dockerfile: Dockerfile
+    container_name: nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - webapp
+    networks:
+      - app_network
+
+  mysql:
+    build:
+      context: ./mysql_service
+      dockerfile: Dockerfile
+    container_name: mysql
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=myflaskapp
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
+volumes:
+  mysql_data:
+
+networks:
+  app_network:
+    driver: bridge
